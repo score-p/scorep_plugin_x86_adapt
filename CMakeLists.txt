@@ -25,4 +25,6 @@ include_directories(include)
 
 add_library(${PROJECT_NAME} SHARED src/main.cpp src/main.cpp)
 
+target_link_libraries(${PROJECT_NAME} x86_adapt)
+
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)

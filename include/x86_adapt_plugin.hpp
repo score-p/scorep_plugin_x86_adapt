@@ -35,9 +35,11 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <map>
+#include <vector>
+#include <atomic>
 
 extern "C" {
-#define _GNU_SOURCE
 #include <sched.h>
 }
 
