@@ -53,8 +53,11 @@ public:
 
     void loop(const std::vector<x86_adapt::configuration_item>& cis,
               std::map<x86_adapt::configuration_item,
-                       std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>& timelines)
+                       std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>& timelines,
+              cpu_set_t cpumask)
     {
+        sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
+
         scorep::plugin::log::logging::debug() << "Entered measurement loop on CPU #"
                                               << device_.id();
         while (looping.load())
@@ -76,8 +79,11 @@ public:
     {
         looping.store(true);
 
+        cpu_set_t cpumask;
+        sched_getaffinity(0, sizeof(cpu_set_t), &cpumask);
+
         thread_ = std::make_unique<std::thread>(&recorder_thread::loop, this, std::ref(cis),
-                                                std::ref(timelines));
+                                                std::ref(timelines), cpumask);
     }
 
     void stop()
@@ -127,7 +133,7 @@ class x86_adapt_plugin : public scorep::plugin::base<x86_adapt_plugin, async, po
 public:
     x86_adapt_plugin()
     {
-        scorep::plugin::log::logging::debug() << "Plugin Initialized.";
+        scorep::plugin::log::logging::info() << "Plugin loaded.";
     }
 
     std::vector<scorep::plugin::metric_property> get_metric_properties(const std::string& knob_name)
