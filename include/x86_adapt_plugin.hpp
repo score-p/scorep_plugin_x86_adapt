@@ -32,12 +32,12 @@
 
 #include <scorep/plugin/plugin.hpp>
 
+#include <atomic>
+#include <map>
 #include <mutex>
 #include <string>
 #include <thread>
-#include <map>
 #include <vector>
-#include <atomic>
 
 extern "C" {
 #include <sched.h>
@@ -55,6 +55,8 @@ public:
               std::map<x86_adapt::configuration_item,
                        std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>& timelines)
     {
+        scorep::plugin::log::logging::debug() << "Entered measurement loop on CPU #"
+                                              << device_.id();
         while (looping.load())
         {
             for (const auto& ci : cis)
@@ -64,6 +66,8 @@ public:
 
             std::this_thread::sleep_for(interval_);
         }
+        scorep::plugin::log::logging::debug() << "Leaving measurement loop on CPU #"
+                                              << device_.id();
     }
 
     void start(const std::vector<x86_adapt::configuration_item>& cis,
@@ -121,13 +125,18 @@ class x86_adapt_plugin : public scorep::plugin::base<x86_adapt_plugin, async, po
     }
 
 public:
-    x86_adapt_plugin() = default;
+    x86_adapt_plugin()
+    {
+        scorep::plugin::log::logging::debug() << "Plugin Initialized.";
+    }
 
     std::vector<scorep::plugin::metric_property> get_metric_properties(const std::string& knob_name)
     {
         auto configuration_item = x86_adapt_.cpu_configuration_items().lookup(knob_name);
 
         make_handle(knob_name, configuration_item);
+
+        scorep::plugin::log::logging::debug() << "Added new metric for Knob: '" << knob_name << "'";
 
         return { scorep::plugin::metric_property(knob_name, configuration_item.description(), "#")
                      .absolute_point()
@@ -150,6 +159,9 @@ public:
 
         std::lock_guard<std::mutex> lock(init_mutex);
 
+        scorep::plugin::log::logging::debug()
+            << "Create data structures for recorder threads on CPU #" << cpu;
+
         recorders_.emplace(cpu, std::make_unique<recorder_thread>(std::move(device),
                                                                   std::chrono::milliseconds(50)));
         (void)values_[cpu];
@@ -159,6 +171,8 @@ public:
     {
         for (auto& thread_pair : recorders_)
         {
+            scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #"
+                                                  << thread_pair.first;
             thread_pair.second->start(get_handles(), values_[thread_pair.first]);
         }
     }
@@ -167,6 +181,8 @@ public:
     {
         for (auto& thread_pair : recorders_)
         {
+            scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #"
+                                                  << thread_pair.first;
             thread_pair.second->stop();
         }
     }
@@ -174,6 +190,8 @@ public:
     template <typename Cursor>
     void get_all_values(x86_adapt::configuration_item& knob, Cursor& c)
     {
+        scorep::plugin::log::logging::debug() << "Get values called on thread for CPU #"
+                                              << get_current_cpu();
         auto timeline = values_[get_current_cpu()][knob];
 
         for (const auto& entry : timeline)
