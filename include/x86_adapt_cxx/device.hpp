@@ -40,7 +40,7 @@ class device
 {
 public:
     device(x86_adapt_device_type type, int dev)
-    : type_(type), handle_(check(x86_adapt_get_device_ro(type, dev)))
+    : type_(type), handle_(check(x86_adapt_get_device_ro(type, dev))), dev_(dev)
     {
     }
 
@@ -77,6 +77,11 @@ public:
 
     int id() const
     {
+        return dev_;
+    }
+
+    int handle() const
+    {
         return handle_;
     }
 
@@ -88,5 +93,6 @@ public:
 private:
     x86_adapt_device_type type_;
     int handle_;
+    int dev_;
 };
 }

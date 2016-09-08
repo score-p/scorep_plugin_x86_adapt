@@ -46,8 +46,8 @@ extern "C" {
 class recorder_thread
 {
 public:
-    recorder_thread(x86_adapt::device device, std::chrono::nanoseconds interval)
-    : device_(std::move(device)), interval_(interval)
+    recorder_thread(x86_adapt::device&& device, std::chrono::nanoseconds interval)
+    : device_(device), interval_(interval)
     {
     }
 
@@ -175,22 +175,16 @@ public:
 
     void start()
     {
-        for (auto& thread_pair : recorders_)
-        {
-            scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #"
-                                                  << thread_pair.first;
-            thread_pair.second->start(get_handles(), values_[thread_pair.first]);
-        }
+        int cpu = get_current_cpu();
+        scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #" << cpu;
+        recorders_[cpu]->start(get_handles(), values_[cpu]);
     }
 
     void stop()
     {
-        for (auto& thread_pair : recorders_)
-        {
-            scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #"
-                                                  << thread_pair.first;
-            thread_pair.second->stop();
-        }
+        int cpu = get_current_cpu();
+        scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #" << cpu;
+        recorders_[cpu]->stop();
     }
 
     template <typename Cursor>
