@@ -60,6 +60,7 @@ public:
 
         scorep::plugin::log::logging::debug() << "Entered measurement loop on CPU #"
                                               << device_.id();
+
         while (looping.load())
         {
             for (const auto& ci : cis)
@@ -177,7 +178,7 @@ public:
 
         std::lock_guard<std::mutex> lock(init_mutex);
 
-        auto id = knobs_.size();
+        auto id = recorded_knobs_.size();
 
         recorded_knobs_.push_back({ knobs_.at(knob_name), cpu });
 
@@ -187,6 +188,8 @@ public:
 
         scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #" << cpu;
         recorders_[cpu]->start(knobs_, values_[cpu]);
+
+        scorep::plugin::log::logging::debug() << "Used id: " << id;
 
         return static_cast<int>(id);
     }
@@ -202,10 +205,11 @@ public:
     template <typename Cursor>
     void get_all_values(int id, Cursor& c)
     {
+        scorep::plugin::log::logging::debug() << "get_all_values called for id: " << id;
+
         auto& oid = recorded_knobs_[id];
         auto cpu = oid.cpu;
 
-        scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #" << cpu;
         recorders_[cpu]->stop();
 
         auto knob = oid.item;
