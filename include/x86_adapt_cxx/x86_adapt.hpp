@@ -48,8 +48,8 @@ public:
     x86_adapt(const x86_adapt&) = delete;
     x86_adapt& operator=(const x86_adapt&) = delete;
 
-    x86_adapt(x86_adapt&&) = default;
-    x86_adapt& operator=(x86_adapt&&) = default;
+    x86_adapt(x86_adapt&&) = delete;
+    x86_adapt& operator=(x86_adapt&&) = delete;
 
     ~x86_adapt()
     {

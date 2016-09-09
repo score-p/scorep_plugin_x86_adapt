@@ -47,8 +47,12 @@ public:
     device(const device&) = delete;
     device& operator=(const device&) = delete;
 
-    device(device&&) = default;
-    device& operator=(device&&) = default;
+    device(device&& other) : type_(other.type_), handle_(other.handle_)
+    {
+        other.handle_ = -1;
+    }
+
+    device& operator=(device&& other) = delete;
 
     ~device()
     {
