@@ -56,7 +56,10 @@ public:
 
     ~device()
     {
-        check(x86_adapt_put_device(type_, handle_));
+        if (handle_ != -1)
+        {
+            check(x86_adapt_put_device(type_, handle_));
+        }
     }
 
 public:
