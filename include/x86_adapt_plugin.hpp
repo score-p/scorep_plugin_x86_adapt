@@ -196,6 +196,9 @@ public:
 
     void start()
     {
+        // Note that this may not be called by all threads, so this is not a good place to call
+        // start on recorder threads. Instead the recorder threads are start/stopped on
+        // add_metric / get_all_values. Timestamps outside of epoch are filtered by the wrapper
     }
 
     void stop()
