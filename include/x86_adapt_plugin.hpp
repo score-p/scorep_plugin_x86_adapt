@@ -225,7 +225,6 @@ public:
     }
 
 public:
-    x86_adapt::x86_adapt x86_adapt_;
     std::mutex init_mutex;
     std::map<std::string, x86_adapt::configuration_item> knobs_;
     std::vector<oid> recorded_knobs_;
@@ -233,4 +232,5 @@ public:
     std::map<int, std::map<x86_adapt::configuration_item,
                            std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>>
         values_;
+    x86_adapt::x86_adapt x86_adapt_;
 };
