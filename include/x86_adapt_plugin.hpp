@@ -46,12 +46,12 @@ extern "C" {
 class recorder_thread
 {
 public:
-    recorder_thread(x86_adapt::device&& device, std::chrono::nanoseconds interval)
-    : device_(device), interval_(interval)
+    recorder_thread(x86_adapt::device device, std::chrono::nanoseconds interval)
+    : device_(std::move(device)), interval_(interval)
     {
     }
 
-    void loop(const std::vector<x86_adapt::configuration_item>& cis,
+    void loop(const std::map<std::string, x86_adapt::configuration_item>& cis,
               std::map<x86_adapt::configuration_item,
                        std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>& timelines,
               cpu_set_t cpumask)
@@ -64,7 +64,8 @@ public:
         {
             for (const auto& ci : cis)
             {
-                timelines[ci].emplace_back(scorep::chrono::measurement_clock::now(), device_(ci));
+                timelines[ci.second].emplace_back(scorep::chrono::measurement_clock::now(),
+                                                  device_(ci.second));
             }
 
             std::this_thread::sleep_for(interval_);
@@ -73,7 +74,7 @@ public:
                                               << device_.id();
     }
 
-    void start(const std::vector<x86_adapt::configuration_item>& cis,
+    void start(const std::map<std::string, x86_adapt::configuration_item>& cis,
                std::map<x86_adapt::configuration_item,
                         std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>& timelines)
     {
@@ -104,11 +105,14 @@ private:
 
 using namespace scorep::plugin::policy;
 
-template <typename T, typename Policies>
-using handle_oid_policy = object_id<x86_adapt::configuration_item, T, Policies>;
+struct oid
+{
+    x86_adapt::configuration_item item;
+    int cpu;
+};
 
-class x86_adapt_plugin : public scorep::plugin::base<x86_adapt_plugin, async, post_mortem,
-                                                     scorep_clock, per_thread, handle_oid_policy>
+class x86_adapt_plugin
+    : public scorep::plugin::base<x86_adapt_plugin, async, post_mortem, scorep_clock, per_thread>
 {
     static bool is_pinned()
     {
@@ -140,7 +144,7 @@ public:
     {
         auto configuration_item = x86_adapt_.cpu_configuration_items().lookup(knob_name);
 
-        make_handle(knob_name, configuration_item);
+        knobs_.emplace(knob_name, configuration_item);
 
         scorep::plugin::log::logging::debug() << "Added new metric for Knob: '" << knob_name << "'";
 
@@ -149,13 +153,10 @@ public:
                      .value_uint() };
     }
 
-    void add_metric(x86_adapt::configuration_item& ci)
+    int add_metric(const std::string& knob_name)
     {
         if (!is_pinned())
         {
-            scorep::plugin::log::logging::fatal()
-                << "This plugin requires a immutable one to one mapping between threads and cpus.";
-
             scorep::exception::raise("Thread is not pinned to one specific CPU. Cannot continue.");
         }
 
@@ -163,21 +164,27 @@ public:
 
         auto device = x86_adapt_.cpu(cpu);
 
-        std::lock_guard<std::mutex> lock(init_mutex);
-
         scorep::plugin::log::logging::debug()
             << "Create data structures for recorder threads on CPU #" << cpu;
+
+        std::lock_guard<std::mutex> lock(init_mutex);
+
+        auto id = knobs_.size();
+
+        recorded_knobs_.push_back({ knobs_.at(knob_name), cpu });
 
         recorders_.emplace(cpu, std::make_unique<recorder_thread>(std::move(device),
                                                                   std::chrono::milliseconds(50)));
         (void)values_[cpu];
+
+        return static_cast<int>(id);
     }
 
     void start()
     {
         int cpu = get_current_cpu();
         scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #" << cpu;
-        recorders_[cpu]->start(get_handles(), values_[cpu]);
+        recorders_[cpu]->start(knobs_, values_[cpu]);
     }
 
     void stop()
@@ -188,11 +195,15 @@ public:
     }
 
     template <typename Cursor>
-    void get_all_values(x86_adapt::configuration_item& knob, Cursor& c)
+    void get_all_values(int id, Cursor& c)
     {
-        scorep::plugin::log::logging::debug() << "Get values called on thread for CPU #"
-                                              << get_current_cpu();
-        auto timeline = values_[get_current_cpu()][knob];
+        auto& oid = recorded_knobs_[id];
+        auto cpu = oid.cpu;
+        auto knob = oid.item;
+
+        scorep::plugin::log::logging::debug() << "Get values called on CPU #" << cpu
+                                              << " for Knob: " << knob.name();
+        auto timeline = values_[cpu][knob];
 
         for (const auto& entry : timeline)
         {
@@ -203,6 +214,8 @@ public:
 public:
     x86_adapt::x86_adapt x86_adapt_;
     std::mutex init_mutex;
+    std::map<std::string, x86_adapt::configuration_item> knobs_;
+    std::vector<oid> recorded_knobs_;
     std::map<int, std::unique_ptr<recorder_thread>> recorders_;
     std::map<int, std::map<x86_adapt::configuration_item,
                            std::vector<std::pair<scorep::chrono::ticks, std::uint64_t>>>>
