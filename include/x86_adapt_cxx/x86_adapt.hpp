@@ -87,33 +87,5 @@ public:
     {
         return configuration_items(X86_ADAPT_DIE);
     }
-
-    configuration_item lookup(const std::string& knob)
-    {
-        // Yes, studied math, still can't count above three
-        // FooKnobItem@node
-        // FooKnobItem2@cpu
-        // 1234567890123456
-        // 65432109876543210
-
-        if (knob.size() > 4)
-        {
-            auto size = knob.size();
-
-            if (knob.substr(size - 4) == "@node")
-            {
-                return node_configuration_items()(knob.substr(0, size - 5));
-            }
-
-            if (knob.substr(size - 3) == "@cpu")
-            {
-                return cpu_configuration_items()(knob.substr(0, size - 4));
-            }
-        }
-
-        // TODO throw a proper exception
-        // For now, we just cry like a little child
-        return configuration_item(X86_ADAPT_MAX, -1);
-    }
 };
 }
