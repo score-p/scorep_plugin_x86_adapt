@@ -85,18 +85,26 @@ public:
 
         thread_ = std::make_unique<std::thread>(&recorder_thread::loop, this, std::ref(cis),
                                                 std::ref(timelines), cpumask);
+
+        running_ = true;
     }
 
     void stop()
     {
+        if (!running_)
+            return;
+
         looping.store(false);
 
         thread_->join();
 
         thread_.reset(nullptr);
+
+        running_ = false;
     }
 
 private:
+    bool running_ = false;
     x86_adapt::device device_;
     std::unique_ptr<std::thread> thread_;
     std::atomic<bool> looping;
@@ -146,7 +154,7 @@ public:
 
         knobs_.emplace(knob_name, configuration_item);
 
-        scorep::plugin::log::logging::debug() << "Added new metric for Knob: '" << knob_name << "'";
+        scorep::plugin::log::logging::info() << "Added new metric for Knob: '" << knob_name << "'";
 
         return { scorep::plugin::metric_property(knob_name, configuration_item.description(), "#")
                      .absolute_point()
@@ -177,21 +185,18 @@ public:
                                                                   std::chrono::milliseconds(50)));
         (void)values_[cpu];
 
+        scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #" << cpu;
+        recorders_[cpu]->start(knobs_, values_[cpu]);
+
         return static_cast<int>(id);
     }
 
     void start()
     {
-        int cpu = get_current_cpu();
-        scorep::plugin::log::logging::debug() << "Starting measurement thread for CPU #" << cpu;
-        recorders_[cpu]->start(knobs_, values_[cpu]);
     }
 
     void stop()
     {
-        int cpu = get_current_cpu();
-        scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #" << cpu;
-        recorders_[cpu]->stop();
     }
 
     template <typename Cursor>
@@ -199,6 +204,10 @@ public:
     {
         auto& oid = recorded_knobs_[id];
         auto cpu = oid.cpu;
+
+        scorep::plugin::log::logging::debug() << "Stopped measurement thread for CPU #" << cpu;
+        recorders_[cpu]->stop();
+
         auto knob = oid.item;
 
         scorep::plugin::log::logging::debug() << "Get values called on CPU #" << cpu
