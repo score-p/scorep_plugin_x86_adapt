@@ -47,18 +47,18 @@ public:
     device(const device&) = delete;
     device& operator=(const device&) = delete;
 
-    device(device&& other) : type_(other.type_), handle_(other.handle_)
+    device(device&& other) : type_(other.type_), handle_(other.handle_), dev_(other.dev_)
     {
-        other.handle_ = -1;
+        other.dev_ = -1;
     }
 
     device& operator=(device&& other) = delete;
 
     ~device()
     {
-        if (handle_ != -1)
+        if (dev_ != -1)
         {
-            check(x86_adapt_put_device(type_, handle_));
+            check(x86_adapt_put_device(type_, dev_));
         }
     }
 
