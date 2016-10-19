@@ -14,17 +14,20 @@ endif()
 
 include(common/DefaultBuildType.cmake)
 
+find_package(X86Adapt REQUIRED)
+if (NOT X86Adapt_FOUND)
+    message(SEND_ERROR "Missing required libx86_adapt.")
+endif()
+
+include_directories(SYSTEM ${X86_ADAPT_INCLUDE_DIRS})
+
 find_package(Scorep REQUIRED)
-
-set(SCOREP_FOUND true)
-include_directories(/opt/scorep/2016-09-07_metric/include)
-
 include(scorep/ScorepCXXPlugin.cmake)
 
 include_directories(include)
 
 add_library(${PROJECT_NAME} SHARED src/main.cpp src/main.cpp)
 
-target_link_libraries(${PROJECT_NAME} x86_adapt)
+target_link_libraries(${PROJECT_NAME} ${X86_ADAPT_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME} LIBRARY DESTINATION lib)
