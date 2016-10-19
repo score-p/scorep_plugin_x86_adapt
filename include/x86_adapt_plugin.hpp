@@ -164,12 +164,17 @@ public:
 
     int add_metric(const std::string& knob_name)
     {
+        int cpu = get_current_cpu();
+
         if (!is_pinned())
         {
-            scorep::exception::raise("Thread is not pinned to one specific CPU. Cannot continue.");
+            scorep::plugin::log::logging::warn() <<
+                "Thread is not pinned to one specific CPU. You're swimming in new waters.";
+
+            // Now, I'm feeling the urge to wash my hands with acid (╯°□°）╯︵ ┻━┻
+            cpu = 0;
         }
 
-        int cpu = get_current_cpu();
 
         auto device = x86_adapt_.cpu(cpu);
 
@@ -225,6 +230,11 @@ public:
         {
             c << entry;
         }
+    }
+
+    ~x86_adapt_plugin()
+    {
+        recorders_.clear();
     }
 
 public:
