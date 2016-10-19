@@ -12,6 +12,12 @@ To compile this plugin, you need:
 
 *   The `x86_adapt` kernelmodule and library from [here](https://github.com/tud-zih-energy/x86_adapt)
 
+### Limitations
+
+*   This plugin only supports per core metrics
+
+*   Score-P metrics are recorded per thread, this means, that in order to reliably relate core metrics to threads, the threads must be pinned. The pinning should be done in a 1-to-1 fasion, i.e., thread i is pinned to core i. `GOMP_CPU_AFFINITY` should be sufficient.
+
 ### Building
 
 1.  Create a build directory
